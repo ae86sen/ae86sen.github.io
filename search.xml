@@ -25,6 +25,192 @@
       </tags>
   </entry>
   <entry>
+    <title>基于docker+grafana+influxdb的性能监控系统搭建</title>
+    <url>/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/</url>
+    <content><![CDATA[<p>之前压测一直用的是jmeter自带的聚合报告来分析结果，但是对tps,qps等性能指标进行页面可视化显示效果不是很好，so，引入了grafana+influxdb，会有一个非常炫酷的可视化页面和全面的视图分析。</p>
+<p>在搭建之前，先简单了解下grafana和influxdb是什么。</p>
+<h2 id="influxdb简介"><a href="#influxdb简介" class="headerlink" title="influxdb简介"></a>influxdb简介</h2><p><a href="https://github.com/influxdata/influxdb">Influx DB</a>是一个开源时间序列数据库。那么问题来了，什么叫时序数据库？想详细了解可以查看这篇<a href="https://www.sohu.com/a/237660940_130419">文章</a>。</p>
+<p><strong>influxdb有三个特性</strong>：</p>
+<ol>
+<li>Time Series （时间序列）：可以使用与时间有关的相关聚合函数</li>
+<li>Metrics（度量）：可以实时对大量数据进行计算</li>
+<li>Eevents（事件）：它支持任意的事件数据</li>
+</ol>
+<p><strong>它的核心概念</strong>（以mysql作为参照）：</p>
+<ol>
+<li>database相当于mysql中的database</li>
+<li>measurement相当于mysql中的表</li>
+<li>point相当于mysql中的行</li>
+<li>tag相当于mysql中的索引，只支持字符串类型</li>
+<li>field相当于mysql中的列，支持多种类型</li>
+<li>retention policy保存策略，这是influxdb特有的属性，rp指定数据在influxdb中的保存时间，时间已过，influxdb会自动清除数据。influxdb不支持修改语句，虽然有删除语句，但是不建议使用</li>
+<li>continuous queries 特色功能之一，相当于定时任务。</li>
+</ol>
+<p><strong>一些基本语法</strong>（其实和mysql差不多，注意table是measurement）：</p>
+<ol>
+<li>create database “db_name” #创建数据库 </li>
+<li>show databases #显示所有的数据库 </li>
+<li>drop database “db_name” #删除数据库 </li>
+<li>use db_name #使用数据库 </li>
+<li>show measurements #显示该数据库中所有的表 </li>
+<li>insert test,host=127.0.0.1,monitor_name=test count=1 #创建表，直接在插入数据的时候指定表名 </li>
+<li>drop measurement “measurement_name”  #删除表 </li>
+<li>select * from access_list  #查询access_list表</li>
+</ol>
+<p><strong><em>它具有的以上特点让其与数据实时监控形成完美契合。成为开发监控系统的首选数据库之一。</em></strong></p>
+<h2 id="grafana简介"><a href="#grafana简介" class="headerlink" title="grafana简介"></a>grafana简介</h2><p><a href="https://github.com/grafana/grafana">grafana</a>是一款采用 go 语言编写的开源应用，主要用于大规模指标数据的可视化展现，是网络架构和应用分析中最流行的<strong>时序数据展示</strong>工具，目前已经支持绝大部分常用的时序数据库。</p>
+<ol>
+<li>面板：包含图形、singlestat 、表、热图、提醒清单，文本、仪表板列表</li>
+<li>仪表板功能：变量（variables）、注释（animation）、文件夹、播放列表、搜索、分享、时间范围、进出口、脚本仪表板，JSON模型等</li>
+<li>数据源：Graphite、Promthus、influxDB、mysql等</li>
+<li>警报：引擎规则、度量、通知</li>
+</ol>
+<p>更多页面详细介绍，可以查看<a href="https://grafana.com/docs/grafana/latest/getting-started">官方文档</a>。</p>
+<p>话不多说，下面我们开始部署~</p>
+<h2 id="部署流程"><a href="#部署流程" class="headerlink" title="部署流程"></a>部署流程</h2><p>我们采用方便快速的docker进行部署。</p>
+<h3 id="docker分别拉取grafana和influxdb镜像"><a href="#docker分别拉取grafana和influxdb镜像" class="headerlink" title="docker分别拉取grafana和influxdb镜像"></a>docker分别拉取grafana和influxdb镜像</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker pull influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker pull grafana:6.6.2</span><br></pre></td></tr></table></figure>
+
+<h3 id="创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"><a href="#创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信" class="headerlink" title="创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"></a>创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker network create grafana</span><br></pre></td></tr></table></figure>
+
+<h3 id="运行容器"><a href="#运行容器" class="headerlink" title="运行容器"></a>运行容器</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker run -d --name=influxdb --network grafana -p 8086:8086 -v   <span class="variable">$&#123;PWD&#125;</span>/influxdb/:/var/liv/influxdb/ influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+
+<p><code>$&#123;PWD&#125;/influxdb/:/var/liv/influxdb/</code>将容器里/var/liv/influxdb/目录下挂载到宿主机的${PWD}/influxdb/的目录下</p>
+<h3 id="进入influxdb容器内，创建一个数据库"><a href="#进入influxdb容器内，创建一个数据库" class="headerlink" title="进入influxdb容器内，创建一个数据库"></a>进入influxdb容器内，创建一个数据库</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker <span class="built_in">exec</span> -it influxdb influx</span><br><span class="line"><span class="comment"># 进入容器后，创建一个名为jmeter的数据库</span></span><br><span class="line">create database jmeter;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看两个容器已经启动"><a href="#查看两个容器已经启动" class="headerlink" title="查看两个容器已经启动"></a>查看两个容器已经启动</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825145515315.png" alt="image-20200825145515315"></p>
+<h3 id="登录grafana网站进行配置-默认账号密码为admin-admin"><a href="#登录grafana网站进行配置-默认账号密码为admin-admin" class="headerlink" title="登录grafana网站进行配置(默认账号密码为admin,admin)"></a>登录grafana网站进行配置(默认账号密码为admin,admin)</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825104727119.png" alt="image-20200825104727119"></p>
+<h3 id="数据源配置"><a href="#数据源配置" class="headerlink" title="数据源配置"></a>数据源配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825104813179.png" alt="image-20200825104813179"></p>
+<p><strong><em>jmeter支持两种:graphite和influxdb</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825104934731.png" alt="image-20200825104934731"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105006045.png" alt="image-20200825105006045"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105025396.png" alt="image-20200825105025396"></p>
+<p><strong><em>数据同步时间5秒，jmeter隔5秒写入数据到db中，这里设置grafana间隔5秒读取db中的数据。</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105038733.png" alt="image-20200825105038733"></p>
+<h3 id="面板配置"><a href="#面板配置" class="headerlink" title="面板配置"></a>面板配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825145131270.png" alt="image-20200825145131270"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825145204904.png" alt="image-20200825145204904"></p>
+<p><strong><em>导入jmeter的面板地址： <a href="https://grafana.com/grafana/dashboards/5496">https://grafana.com/grafana/dashboards/5496</a></em></strong></p>
+<p><strong><em>也可以下载后导入json文件。</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105457833.png" alt="image-20200825105457833"></p>
+<h3 id="jmeter配置"><a href="#jmeter配置" class="headerlink" title="jmeter配置"></a>jmeter配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105610185.png" alt="image-20200825105610185"></p>
+<h3 id="配置完成，发起接口请求即可在grafana实时显示接口相关图表"><a href="#配置完成，发起接口请求即可在grafana实时显示接口相关图表" class="headerlink" title="配置完成，发起接口请求即可在grafana实时显示接口相关图表"></a>配置完成，发起接口请求即可在grafana实时显示接口相关图表</h3><h2 id="数据流转"><a href="#数据流转" class="headerlink" title="数据流转"></a>数据流转</h2><p>最后，我们来捋一捋，从jmeter开始发起请求到最后在grafana上的数据展示，响应数据是如何进行流转的。</p>
+<h3 id="jmeter"><a href="#jmeter" class="headerlink" title="jmeter"></a>jmeter</h3><p>jmeter使用命令行发起接口请求后，会产生一个**.jtl**的文件，里面记录着每个请求的一些线程数、响应码、响应时间等信息。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825112742837.png" alt="image-20200825112742837"></p>
+<h3 id="influxdb"><a href="#influxdb" class="headerlink" title="influxdb"></a>influxdb</h3><p>在jmeter中添加了后端监听器，并选择了通过inlufxdb实现后端监听，因此，步骤1中的响应数据，会写入到influxdb的数据库中。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825113234453.png" alt="image-20200825113234453"></p>
+<p>进入influxdb容器内，查看数据</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825113841230.png" alt="image-20200825113841230"></p>
+<p>使用<code>select * from jmeter</code>查看数据</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825113901681.png" alt="image-20200825113901681"></p>
+<p>记录了每个请求的详细响应信息。</p>
+<h3 id="grafana"><a href="#grafana" class="headerlink" title="grafana"></a>grafana</h3><p>由于我们配置的数据源是influxdb，因此面板展示的所有数据其实都是从influxdb的<strong>jmeter</strong>这个数据库中拿的。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/05/%E5%9F%BA%E4%BA%8Edocker-grafana-influxdb%E7%9A%84%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BA/image-20200825105006045.png" alt="image-20200825105006045"></p>
+<p><strong>so，整个数据流转，即jmeter产生jtl—&gt;存储到influxdb—&gt;grafana从influxdb拿数据。</strong></p>
+]]></content>
+      <categories>
+        <category>实战</category>
+      </categories>
+      <tags>
+        <tag>docker</tag>
+        <tag>grafana</tag>
+        <tag>influxdb</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>性能监控系统搭建docker+grafana+influxdb</title>
+    <url>/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/</url>
+    <content><![CDATA[<p>之前压测一直用的是jmeter自带的聚合报告来分析结果，但是对tps,qps等性能指标进行页面可视化显示效果不是很好，so，引入了grafana+influxdb，会有一个非常炫酷的可视化页面和全面的视图分析。</p>
+<p>在搭建之前，先简单了解下grafana和influxdb是什么。</p>
+<h2 id="一、influxdb简介"><a href="#一、influxdb简介" class="headerlink" title="一、influxdb简介"></a>一、influxdb简介</h2><p><a href="https://github.com/influxdata/influxdb">Influx DB</a>是一个开源时间序列数据库。那么问题来了，什么叫时序数据库？想详细了解可以查看这篇<a href="https://www.sohu.com/a/237660940_130419">文章</a>。</p>
+<p><strong>influxdb有三个特性</strong>：</p>
+<ol>
+<li>Time Series （时间序列）：可以使用与时间有关的相关聚合函数</li>
+<li>Metrics（度量）：可以实时对大量数据进行计算</li>
+<li>Eevents（事件）：它支持任意的事件数据</li>
+</ol>
+<p><strong>它的核心概念</strong>（以mysql作为参照）：</p>
+<ol>
+<li>database相当于mysql中的database</li>
+<li>measurement相当于mysql中的表</li>
+<li>point相当于mysql中的行</li>
+<li>tag相当于mysql中的索引，只支持字符串类型</li>
+<li>field相当于mysql中的列，支持多种类型</li>
+<li>retention policy保存策略，这是influxdb特有的属性，rp指定数据在influxdb中的保存时间，时间已过，influxdb会自动清除数据。influxdb不支持修改语句，虽然有删除语句，但是不建议使用</li>
+<li>continuous queries 特色功能之一，相当于定时任务。</li>
+</ol>
+<p><strong>一些基本语法</strong>（其实和mysql差不多，注意table是measurement）：</p>
+<ol>
+<li>create database “db_name” #创建数据库 </li>
+<li>show databases #显示所有的数据库 </li>
+<li>drop database “db_name” #删除数据库 </li>
+<li>use db_name #使用数据库 </li>
+<li>show measurements #显示该数据库中所有的表 </li>
+<li>insert test,host=127.0.0.1,monitor_name=test count=1 #创建表，直接在插入数据的时候指定表名 </li>
+<li>drop measurement “measurement_name”  #删除表 </li>
+<li>select * from access_list  #查询access_list表</li>
+</ol>
+<p><strong><em>它具有的以上特点让其与数据实时监控形成完美契合。成为开发监控系统的首选数据库之一。</em></strong></p>
+<h2 id="二、grafana简介"><a href="#二、grafana简介" class="headerlink" title="二、grafana简介"></a>二、grafana简介</h2><p><a href="https://github.com/grafana/grafana">grafana</a>是一款采用 go 语言编写的开源应用，主要用于大规模指标数据的可视化展现，是网络架构和应用分析中最流行的<strong>时序数据展示</strong>工具，目前已经支持绝大部分常用的时序数据库。</p>
+<ol>
+<li>面板：包含图形、singlestat 、表、热图、提醒清单，文本、仪表板列表</li>
+<li>仪表板功能：变量（variables）、注释（animation）、文件夹、播放列表、搜索、分享、时间范围、进出口、脚本仪表板，JSON模型等</li>
+<li>数据源：Graphite、Promthus、influxDB、mysql等</li>
+<li>警报：引擎规则、度量、通知</li>
+</ol>
+<p>更多页面详细介绍，可以查看<a href="https://grafana.com/docs/grafana/latest/getting-started">官方文档</a>。</p>
+<p>话不多说，下面我们开始部署~</p>
+<h2 id="三、部署流程"><a href="#三、部署流程" class="headerlink" title="三、部署流程"></a>三、部署流程</h2><p>我们采用方便快速的docker进行部署。</p>
+<h3 id="1-docker分别拉取grafana和influxdb镜像"><a href="#1-docker分别拉取grafana和influxdb镜像" class="headerlink" title="1.docker分别拉取grafana和influxdb镜像"></a>1.docker分别拉取grafana和influxdb镜像</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker pull influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker pull grafana:6.6.2</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"><a href="#2-创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信" class="headerlink" title="2.创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"></a>2.创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker network create grafana</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-运行容器"><a href="#3-运行容器" class="headerlink" title="3.运行容器"></a>3.运行容器</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker run -d --name=influxdb --network grafana -p 8086:8086 -v   <span class="variable">$&#123;PWD&#125;</span>/influxdb/:/var/liv/influxdb/ influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+
+<p><code>$&#123;PWD&#125;/influxdb/:/var/liv/influxdb/</code>将容器里/var/liv/influxdb/目录下挂载到宿主机的${PWD}/influxdb/的目录下</p>
+<h3 id="4-进入influxdb容器内，创建一个数据库"><a href="#4-进入influxdb容器内，创建一个数据库" class="headerlink" title="4.进入influxdb容器内，创建一个数据库"></a>4.进入influxdb容器内，创建一个数据库</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker <span class="built_in">exec</span> -it influxdb influx</span><br><span class="line"><span class="comment"># 进入容器后，创建一个名为jmeter的数据库</span></span><br><span class="line">create database jmeter;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-查看两个容器已经启动"><a href="#5-查看两个容器已经启动" class="headerlink" title="5.查看两个容器已经启动"></a>5.查看两个容器已经启动</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
+<h3 id="6-登录grafana网站进行配置-默认账号密码为admin-admin"><a href="#6-登录grafana网站进行配置-默认账号密码为admin-admin" class="headerlink" title="6.登录grafana网站进行配置(默认账号密码为admin,admin)"></a>6.登录grafana网站进行配置(默认账号密码为admin,admin)</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104727119.png" alt="image-20200825104727119"></p>
+<h3 id="7-数据源配置"><a href="#7-数据源配置" class="headerlink" title="7.数据源配置"></a>7.数据源配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104813179.png" alt="image-20200825104813179"></p>
+<p><strong><em>jmeter支持两种:graphite和influxdb</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104934731.png" alt="image-20200825104934731"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105006045.png" alt="image-20200825105006045"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105025396.png" alt="image-20200825105025396"></p>
+<p><strong><em>数据同步时间5秒，jmeter隔5秒写入数据到db中，这里设置grafana间隔5秒读取db中的数据。</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105038733.png" alt="image-20200825105038733"></p>
+<h3 id="8-面板配置"><a href="#8-面板配置" class="headerlink" title="8.面板配置"></a>8.面板配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
+<p><strong><em>导入jmeter的面板地址： <a href="https://grafana.com/grafana/dashboards/5496">https://grafana.com/grafana/dashboards/5496</a></em></strong></p>
+<p><strong><em>也可以下载后导入json文件。</em></strong></p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105457833.png" alt="image-20200825105457833"></p>
+<h3 id="9-jmeter配置"><a href="#9-jmeter配置" class="headerlink" title="9.jmeter配置"></a>9.jmeter配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105610185.png" alt="image-20200825105610185"></p>
+<h3 id="10-配置完成，发起接口请求即可在grafana实时显示接口相关图表"><a href="#10-配置完成，发起接口请求即可在grafana实时显示接口相关图表" class="headerlink" title="10.配置完成，发起接口请求即可在grafana实时显示接口相关图表"></a>10.配置完成，发起接口请求即可在grafana实时显示接口相关图表</h3><h2 id="四、数据流转"><a href="#四、数据流转" class="headerlink" title="四、数据流转"></a>四、数据流转</h2><p>最后，我们来捋一捋，从jmeter开始发起请求到最后在grafana上的数据展示，响应数据是如何进行流转的。</p>
+<h3 id="1-jmeter"><a href="#1-jmeter" class="headerlink" title="1.jmeter"></a>1.jmeter</h3><p>jmeter使用命令行发起接口请求后，会产生一个**.jtl**的文件，里面记录着每个请求的一些线程数、响应码、响应时间等信息。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825112742837.png" alt="image-20200825112742837"></p>
+<h3 id="2-influxdb"><a href="#2-influxdb" class="headerlink" title="2.influxdb"></a>2.influxdb</h3><p>在jmeter中添加了后端监听器，并选择了通过inlufxdb实现后端监听，因此，步骤1中的响应数据，会写入到influxdb的数据库中。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113234453.png" alt="image-20200825113234453"></p>
+<p>进入influxdb容器内，查看数据</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113841230.png" alt="image-20200825113841230"></p>
+<p>使用<code>select * from jmeter</code>查看数据</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113901681.png" alt="image-20200825113901681"></p>
+<p>记录了每个请求的详细响应信息。</p>
+<h3 id="3-grafana"><a href="#3-grafana" class="headerlink" title="3.grafana"></a>3.grafana</h3><p>由于我们配置的数据源是influxdb，因此面板展示的所有数据其实都是从influxdb的<strong>jmeter</strong>这个数据库中拿的。</p>
+<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105006045.png" alt="image-20200825105006045"></p>
+<p><strong>so，整个数据流转，即jmeter产生jtl—&gt;存储到influxdb—&gt;grafana从influxdb拿数据。</strong></p>
+]]></content>
+      <categories>
+        <category>实战</category>
+      </categories>
+      <tags>
+        <tag>docker</tag>
+        <tag>grafana</tag>
+        <tag>influxdb</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>我的第一篇博客</title>
     <url>/2020/08/17/%E6%88%91%E7%9A%84%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/</url>
     <content><![CDATA[<h2 id="第一章"><a href="#第一章" class="headerlink" title="第一章"></a>第一章</h2><hr>
