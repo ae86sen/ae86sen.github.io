@@ -1,27 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>龟速教程之手把手搭建博客1</title>
-    <url>/2020/07/04/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+    <title>pytest-fixture使用总结</title>
+    <url>/2020/05/04/pytest-fixture%E6%80%BB%E7%BB%93/</url>
+    <content><![CDATA[<h2 id="前言：测试前后的准备清理工作"><a href="#前言：测试前后的准备清理工作" class="headerlink" title="前言：测试前后的准备清理工作"></a>前言：测试前后的准备清理工作</h2><p>通常在测试过程中，都会包括三个步骤：测试前的准备(前置条件)-执行测试-测试后的清理。</p>
+<p>在unittest框架中，通常使用setup/teardown来完成测试的前置和后置操作。</p>
+<p>在pytest框架中，也有类似的方法来完成对应的操作，如使用 setup_method、setup_class、setup_module 来分别完成测试类方法、测试类，以及测试 module 的 setup；；使用 teardown_method、teardown_class、teardown_module 来分别完成测试类方法、测试类，以及测试 module 清理操作。</p>
+<p>但是这种方式存在缺陷。 例如，在同一个测试类中，存在多个测试方法，假设每一个测试方法需要不同的 setup 或者 teardown 函数，此时该怎么办呢？</p>
+<p>又如，这些前后置操作，能放到一个统一模块去管理么？</p>
+<p>答案是肯定的，pytest提供了一种更高级的功能，<strong>fixture装饰器</strong>。</p>
+<p>fixture装饰器可以非常方便的自定义各种前置后置方法供测试用例使用，而且可以通过<strong>conftest.py</strong>文件进行共享，供其他函数、模块、类或者整个项目使用。</p>
+<h2 id="1、fixture语法"><a href="#1、fixture语法" class="headerlink" title="1、fixture语法"></a>1、fixture语法</h2><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">fixture(scope=<span class="string">&quot;function&quot;</span>, params=<span class="literal">None</span>, autouse=<span class="literal">False</span>, ids=<span class="literal">None</span>, name=<span class="literal">None</span>)</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>fixture提供了5个参数。</p>
+<h3 id="scope：控制fixture的作用域"><a href="#scope：控制fixture的作用域" class="headerlink" title="scope：控制fixture的作用域"></a>scope：控制fixture的作用域</h3><p>scpoe有4个级别，分别是：</p>
+<p>function:在每一个function或者类方法中都会调用（默认）。</p>
+<p>class:在每一个类中只调用一次。</p>
+<p>module:在每一个.py 文件调用一次。</p>
+<p>session:一个session调用一次，如运行整个项目有100条用例，那么本次用例执行过程中只会调用一次。</p>
+<h3 id="params：一个可选的参数列表"><a href="#params：一个可选的参数列表" class="headerlink" title="params：一个可选的参数列表"></a>params：一个可选的参数列表</h3><p>params 以可选的参数列表形式存在。在测试函数中使用时，可通过 request.param 接收设置的返回值（即 params 列表里的值）。params 中有多少元素，在测试时，引用此 fixture 的函数就会调用几次。</p>
+<h3 id="autouse：是否自动执行设置的-fixtures"><a href="#autouse：是否自动执行设置的-fixtures" class="headerlink" title="autouse：是否自动执行设置的 fixtures"></a>autouse：是否自动执行设置的 fixtures</h3><p>当 autouse 为 True 时，测试函数即使不调用 fixture 装饰器，定义的 fixture 函数也会被执行。</p>
+<h3 id="ids：指定每个字符串-id"><a href="#ids：指定每个字符串-id" class="headerlink" title="ids：指定每个字符串 id"></a>ids：指定每个字符串 id</h3><p>当有多个 params 时，针对每一个 param，可以指定 id，这个 id 将变为测试用例名字的一部分。如果没有提供 id，则 id 将自动生成。</p>
+<h3 id="name：fixture-的名称"><a href="#name：fixture-的名称" class="headerlink" title="name：fixture 的名称"></a>name：fixture 的名称</h3><p>name 是 fixtures 的名称， 它默认是你装饰的那个 fixture 函数的名称。可以通过 name 参数来更改这个 fixture 名称，更改后，如果这个 fixture 被调用，则使用更改后的名称即可。</p>
+<h2 id="2、fixture-用法"><a href="#2、fixture-用法" class="headerlink" title="2、fixture 用法"></a>2、fixture 用法</h2><h3 id="通过函数名直接使用"><a href="#通过函数名直接使用" class="headerlink" title="通过函数名直接使用"></a>通过函数名直接使用</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">demo</span>():</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fixture&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">demo</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;test&#x27;</span>)</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>将fixture的名字通过参数直接传入测试方法即可。运行用例后，<code>demo()</code>方法会先于<code>test_demo()</code>执行。</p>
+<h3 id="通过usefixtures装饰器使用"><a href="#通过usefixtures装饰器使用" class="headerlink" title="通过usefixtures装饰器使用"></a>通过usefixtures装饰器使用</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">demo</span>():</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fixture&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.mark.usefixtures(&#x27;demo&#x27;)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">demo</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;test&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.mark.usefixtures(&#x27;demo&#x27;)</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TestDemo</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">test_demo_1</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">test_demo_2</span>(<span class="params">self</span>):</span></span><br><span class="line">        <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>这样写的话，<strong>fixture无法返回参数</strong>。</p>
+<h3 id="多参数使用"><a href="#多参数使用" class="headerlink" title="多参数使用"></a>多参数使用</h3><p>由于fixture提供了<code>paramas</code>参数，因此fixture也可以实现参数化。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@pytest.fixture(params=[&#x27;a&#x27;, &#x27;b&#x27;, &#x27;c&#x27;])</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">demo</span>(<span class="params">request</span>):</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fixture：<span class="subst">&#123;request.param&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">demo</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;test&#x27;</span>)</span><br></pre></td></tr></table></figure>
 
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+<p>运行结果：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">PASSED                                             [ 33%]test</span><br><span class="line">调用fixture：b</span><br><span class="line">PASSED                                             [ 66%]test</span><br><span class="line">调用fixture：c</span><br><span class="line">PASSED                                             [100%]test</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，将会生成3条用例。</p>
+<h3 id="autouse-参数隐式使用"><a href="#autouse-参数隐式使用" class="headerlink" title="autouse 参数隐式使用"></a>autouse 参数隐式使用</h3><p>以上方式实现了 fixtures 和测试函数的松耦合，但是仍然存在问题：每个测试函数都需要显式声明要用哪个 fixtures。</p>
+<p>基于此，pytest 提供了<strong>autouse 参数</strong>，允许我们在不调用 fixture 装饰器的情况下使用定义的fixture。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@pytest.fixture(autouse=True)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">demo</span>():</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fixture&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>():</span></span><br><span class="line">    print(<span class="string">&#x27;test&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">demo.py::test_demo 调用fixture</span><br><span class="line">PASSED                                                [100%]测试</span><br></pre></td></tr></table></figure>
+
+<h3 id="多-fixture-笛卡尔积使用"><a href="#多-fixture-笛卡尔积使用" class="headerlink" title="多 fixture 笛卡尔积使用"></a>多 fixture 笛卡尔积使用</h3><figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture(params=[&#x27;a&#x27;, &#x27;b&#x27;, &#x27;c&#x27;])</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix1</span>(<span class="params">request</span>):</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fix1:<span class="subst">&#123;request.param&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture(params=[1, 2])</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix2</span>(<span class="params">request</span>):</span></span><br><span class="line">    print(<span class="string">f&#x27;调用fix2:<span class="subst">&#123;request.param&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">fix1, fix2</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;-----我是分割线------&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>将会生成3*2=6条用例：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">调用fix1:a</span><br><span class="line">调用fix2:1</span><br><span class="line">PASSED                                           [ 16%]-----我是分割线------</span><br><span class="line">调用fix1:a</span><br><span class="line">调用fix2:2</span><br><span class="line">PASSED                                           [ 33%]-----我是分割线------</span><br><span class="line">调用fix1:b</span><br><span class="line">调用fix2:1</span><br><span class="line">PASSED                                           [ 50%]-----我是分割线------</span><br><span class="line">调用fix1:b</span><br><span class="line">调用fix2:2</span><br><span class="line">PASSED                                           [ 66%]-----我是分割线------</span><br><span class="line">调用fix1:c</span><br><span class="line">调用fix2:1</span><br><span class="line">PASSED                                           [ 83%]-----我是分割线------</span><br><span class="line">调用fix1:c</span><br><span class="line">调用fix2:2</span><br><span class="line">PASSED                                           [100%]-----我是分割线------</span><br></pre></td></tr></table></figure>
+
+<h3 id="fixture间嵌套使用"><a href="#fixture间嵌套使用" class="headerlink" title="fixture间嵌套使用"></a>fixture间嵌套使用</h3><p>不同的fixture间也可以嵌套使用，将<code>fix1</code>作为参数传入<code>fix2</code>中，如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix1</span>():</span></span><br><span class="line">    print(<span class="string">&#x27;调用fix1&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix2</span>(<span class="params">fix1</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;调用fix2&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">fix2</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;-----我是分割线------&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">demo.py::test_demo 调用fix1</span><br><span class="line">调用fix2</span><br><span class="line">PASSED                                                [100%]-----我是分割线------</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，当调用<code>fix2</code>时，会先调用fix1。</p>
+<h3 id="使用-conftest-py-来共享-fixture"><a href="#使用-conftest-py-来共享-fixture" class="headerlink" title="使用 conftest.py 来共享 fixture"></a>使用 conftest.py 来共享 fixture</h3><p>日常工作测试中，我们常常需要在全局范围内使用同一个测试前置操作。例如，测试开始时首先进行登录操作，接着连接数据库。</p>
+<p>这种情况下，我们就需要使用 <strong>conftest.py</strong>。在 conftest.py 中定义的 fixture 不需要进行 import，pytest 会自动查找使用。 pytest 查找 fixture 的顺序是首先查找测试类（Class），接着查找测试模块（Module），然后是 conftest.py 文件，最后是内置或者第三方插件。</p>
+<h3 id="通过yield唤醒teardown"><a href="#通过yield唤醒teardown" class="headerlink" title="通过yield唤醒teardown"></a>通过yield唤醒teardown</h3><p>前面fixture已经帮我们实现了前置操作，那么后置如何实现呢？非常简单，通过关键字<strong>yield</strong>。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix</span>():</span></span><br><span class="line">    print(<span class="string">&#x27;我是前置条件&#x27;</span>)</span><br><span class="line">    <span class="keyword">yield</span></span><br><span class="line">    print(<span class="string">&#x27;我是后置条件&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">fix</span>):</span></span><br><span class="line">    print(<span class="string">&#x27;-----我是分割线------&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">demo.py::test_demo 我是前置条件</span><br><span class="line">PASSED                                                [100%]-----我是分割线------</span><br><span class="line">我是后置条件</span><br></pre></td></tr></table></figure>
+
+<p>通过yield，会讲该函数变为生成器，这里具体原理先不展开，简单来说，<strong>yield之前的前置条件，yield之后的为后置条件。</strong></p>
+<h3 id="有返回值的fixture"><a href="#有返回值的fixture" class="headerlink" title="有返回值的fixture"></a>有返回值的fixture</h3><p>大部分情况下，我都会使用fixture来返回一些值来供测试用例使用，如登录的cookie、token、数据库的连接对象等，那么fixture的返回值又是如何传递给用例的呢？如下：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix</span>():</span></span><br><span class="line">    a = <span class="number">1</span> + <span class="number">1</span></span><br><span class="line">    <span class="keyword">return</span> a</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">fix</span>):</span></span><br><span class="line">    <span class="comment"># 接收fix值传递给了变量x</span></span><br><span class="line">    x= fix</span><br><span class="line">    print(<span class="string">f&#x27;这是我接收到fix的变量：<span class="subst">&#123;x&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>当然，也可以是多个值：</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture()</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fix</span>():</span></span><br><span class="line">    a = <span class="number">1</span> + <span class="number">1</span></span><br><span class="line">    b = <span class="number">2</span> + <span class="number">2</span></span><br><span class="line">    c = <span class="number">3</span> + <span class="number">3</span></span><br><span class="line">    <span class="keyword">return</span> a,b,c</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">fix</span>):</span></span><br><span class="line">    <span class="comment"># 接收fix值传递给了变量x,y,z</span></span><br><span class="line">    <span class="comment"># 如果只用一个变量接收，类型将会是元组</span></span><br><span class="line">    x,y,z = fix</span><br><span class="line">    print(<span class="string">f&#x27;这是我接收到fix的变量：<span class="subst">&#123;x&#125;</span><span class="subst">&#123;y&#125;</span><span class="subst">&#123;z&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>同理，<strong>yield</strong>也能返回值。</p>
+<h3 id="pytest-mark-parametrize-和-pytest-fixture-结合使用"><a href="#pytest-mark-parametrize-和-pytest-fixture-结合使用" class="headerlink" title="pytest.mark.parametrize 和 pytest.fixture 结合使用"></a>pytest.mark.parametrize 和 pytest.fixture 结合使用</h3><p>现在有一个问题，如果fixture是做了参数化的，如何在用例中动态地给它传入参数呢？</p>
+<p>在我日常工作中，会有这么一种场景：通常我会把数据库连接放到fixture中，但是不同case中用到的数据库可能不是同一个，这就导致我会根据不同的数据库配置信息，实例多个db连接对象，那么我该如何把不同的数据库配置信息，在用例层传入给fixture呢？总不可能每个数据库都创建一个fixture吧？来看看用fixture结合parametrize是如何优雅地实现。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pytest</span><br><span class="line"></span><br><span class="line"><span class="meta">@pytest.fixture(scope=&#x27;class&#x27;)</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">connect_db</span>(<span class="params">request</span>):</span></span><br><span class="line">    db = HandleMysql(request.param)</span><br><span class="line">    <span class="keyword">yield</span> db</span><br><span class="line">    db.close()</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TestDemo</span>:</span></span><br><span class="line">    <span class="comment"># db1,db2,db3是伪代码，表示数据库不同的连接配置信息</span></span><br><span class="line"><span class="meta">    @pytest.mark.parametrize(&#x27;connect_db&#x27;, [db_conf], indirect=True)</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">test_demo</span>(<span class="params">self,connect_db</span>):</span></span><br><span class="line">        <span class="comment"># 接收fix值传递给了变量x</span></span><br><span class="line">        db = connect_db</span><br><span class="line">        print(<span class="string">f&#x27;这是我的数据库连接对象：<span class="subst">&#123;connect_db&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>首先，fixture做了参数化，那么就需要在fixture中接受变量，传入<strong>request</strong>这个内置fixture，然后传入的变量，通过request的<strong>param</strong>接收，这是需要再fixture内部做的操作。</p>
+<p>然后，在用例层的**@pytest.mark.parametrize**中，将配置信息变量<code>db_conf</code>传入到<code>connect_db</code>这个fixture中，需要注意的是，这里必须设置参数<code>indirect=True</code>。</p>
+<blockquote>
+<p>当indirect为True的时候，变量为固件函数名称的，执行的时候会将变量（此例中即为connect_db）当做函数来执行。</p>
+<p>当indirect为false的时候，变量为固件函数名称的，执行的时候会将变量当做一个参数来执行。</p>
+</blockquote>
+<p>ok，日常项目中，关于fixture的使用就如上所述了。</p>
 ]]></content>
       <categories>
-        <category>个人博客</category>
+        <category>总结</category>
       </categories>
       <tags>
-        <tag>docker</tag>
+        <tag>pytest</tag>
       </tags>
   </entry>
   <entry>
@@ -118,103 +183,76 @@
       </tags>
   </entry>
   <entry>
-    <title>性能监控系统搭建docker+grafana+influxdb</title>
-    <url>/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/</url>
-    <content><![CDATA[<p>之前压测一直用的是jmeter自带的聚合报告来分析结果，但是对tps,qps等性能指标进行页面可视化显示效果不是很好，so，引入了grafana+influxdb，会有一个非常炫酷的可视化页面和全面的视图分析。</p>
-<p>在搭建之前，先简单了解下grafana和influxdb是什么。</p>
-<h2 id="一、influxdb简介"><a href="#一、influxdb简介" class="headerlink" title="一、influxdb简介"></a>一、influxdb简介</h2><p><a href="https://github.com/influxdata/influxdb">Influx DB</a>是一个开源时间序列数据库。那么问题来了，什么叫时序数据库？想详细了解可以查看这篇<a href="https://www.sohu.com/a/237660940_130419">文章</a>。</p>
-<p><strong>influxdb有三个特性</strong>：</p>
-<ol>
-<li>Time Series （时间序列）：可以使用与时间有关的相关聚合函数</li>
-<li>Metrics（度量）：可以实时对大量数据进行计算</li>
-<li>Eevents（事件）：它支持任意的事件数据</li>
-</ol>
-<p><strong>它的核心概念</strong>（以mysql作为参照）：</p>
-<ol>
-<li>database相当于mysql中的database</li>
-<li>measurement相当于mysql中的表</li>
-<li>point相当于mysql中的行</li>
-<li>tag相当于mysql中的索引，只支持字符串类型</li>
-<li>field相当于mysql中的列，支持多种类型</li>
-<li>retention policy保存策略，这是influxdb特有的属性，rp指定数据在influxdb中的保存时间，时间已过，influxdb会自动清除数据。influxdb不支持修改语句，虽然有删除语句，但是不建议使用</li>
-<li>continuous queries 特色功能之一，相当于定时任务。</li>
-</ol>
-<p><strong>一些基本语法</strong>（其实和mysql差不多，注意table是measurement）：</p>
-<ol>
-<li>create database “db_name” #创建数据库 </li>
-<li>show databases #显示所有的数据库 </li>
-<li>drop database “db_name” #删除数据库 </li>
-<li>use db_name #使用数据库 </li>
-<li>show measurements #显示该数据库中所有的表 </li>
-<li>insert test,host=127.0.0.1,monitor_name=test count=1 #创建表，直接在插入数据的时候指定表名 </li>
-<li>drop measurement “measurement_name”  #删除表 </li>
-<li>select * from access_list  #查询access_list表</li>
-</ol>
-<p><strong><em>它具有的以上特点让其与数据实时监控形成完美契合。成为开发监控系统的首选数据库之一。</em></strong></p>
-<h2 id="二、grafana简介"><a href="#二、grafana简介" class="headerlink" title="二、grafana简介"></a>二、grafana简介</h2><p><a href="https://github.com/grafana/grafana">grafana</a>是一款采用 go 语言编写的开源应用，主要用于大规模指标数据的可视化展现，是网络架构和应用分析中最流行的<strong>时序数据展示</strong>工具，目前已经支持绝大部分常用的时序数据库。</p>
-<ol>
-<li>面板：包含图形、singlestat 、表、热图、提醒清单，文本、仪表板列表</li>
-<li>仪表板功能：变量（variables）、注释（animation）、文件夹、播放列表、搜索、分享、时间范围、进出口、脚本仪表板，JSON模型等</li>
-<li>数据源：Graphite、Promthus、influxDB、mysql等</li>
-<li>警报：引擎规则、度量、通知</li>
-</ol>
-<p>更多页面详细介绍，可以查看<a href="https://grafana.com/docs/grafana/latest/getting-started">官方文档</a>。</p>
-<p>话不多说，下面我们开始部署~</p>
-<h2 id="三、部署流程"><a href="#三、部署流程" class="headerlink" title="三、部署流程"></a>三、部署流程</h2><p>我们采用方便快速的docker进行部署。</p>
-<h3 id="1-docker分别拉取grafana和influxdb镜像"><a href="#1-docker分别拉取grafana和influxdb镜像" class="headerlink" title="1.docker分别拉取grafana和influxdb镜像"></a>1.docker分别拉取grafana和influxdb镜像</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker pull influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+    <title>解决pymongo时区问题</title>
+    <url>/2020/06/06/%E8%A7%A3%E5%86%B3pymongo%E6%97%B6%E5%8C%BA%E9%97%AE%E9%A2%98/</url>
+    <content><![CDATA[<h3 id="问题："><a href="#问题：" class="headerlink" title="问题："></a>问题：</h3><p>最近在做接口自动化框架，其中有涉及到接口返回值与MongoDB中的数据校验，所以用到了pymongo这个库。在使用过程中，踩了一个大坑：当我根据日期去筛选数据的时候，发现接口返回的数据量和mongodb中记录的数据量始终不一致。</p>
+<h3 id="分析："><a href="#分析：" class="headerlink" title="分析："></a>分析：</h3><p>先看三组数据（同一条数据）：</p>
+<p>1.数据库连接工具Navicat中的记录</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">&quot;_id&quot;</span>: ObjectId(<span class="string">&quot;5f646902ee75270c044f15d2&quot;</span>),</span><br><span class="line">    <span class="attr">&quot;Version&quot;</span>: <span class="string">&quot;1.0&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;TypeName&quot;</span>: <span class="string">&quot;运行&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;HappenTime&quot;</span>: ISODate(<span class="string">&quot;2020-03-18T07:55:03.605Z&quot;</span>),</span><br><span class="line">    <span class="attr">&quot;AppName&quot;</span>: <span class="string">&quot;vipservermailG1&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;AppFriendlyName&quot;</span>: <span class="string">&quot;邮件服务&quot;</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker pull grafana:6.6.2</span><br></pre></td></tr></table></figure>
+<p>2.数据库连接工具MongoDB Compass中的记录</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line">&#123;    </span><br><span class="line">    <span class="attr">&quot;_id&quot;</span>:<span class="string">&quot;5f646902ee75270c044f15d2&quot;</span>,</span><br><span class="line">     <span class="attr">&quot;Version&quot;</span>:<span class="string">&quot;1.0&quot;</span>,</span><br><span class="line">     <span class="attr">&quot;TypeName&quot;</span>:<span class="string">&quot;运行&quot;</span></span><br><span class="line">     <span class="string">&quot;HappenTime&quot;</span>:<span class="number">2020</span><span class="number">-03</span><span class="number">-18</span> <span class="number">15</span>:<span class="number">55</span>:<span class="number">03.605</span>,</span><br><span class="line">     <span class="attr">&quot;AppName&quot;</span>:<span class="string">&quot;vipservermailG1&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;AppFriendlyName&quot;</span>:<span class="string">&quot;邮件服务&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
 
-<h3 id="2-创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"><a href="#2-创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信" class="headerlink" title="2.创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信"></a>2.创建一个自定义网络，将两个容器加入到这个网络中，那么这两个容器就能通过名字互相通信</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker network create grafana</span><br></pre></td></tr></table></figure>
+<p>3.通过pymongo查出的数据</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="string">&#x27;_id&#x27;</span>: ObjectId(<span class="string">&#x27;5f646902ee75270c044f15d2&#x27;</span>),</span><br><span class="line">    <span class="string">&#x27;Version&#x27;</span>: <span class="string">&#x27;1.0&#x27;</span>,  </span><br><span class="line">    <span class="string">&#x27;TypeName&#x27;</span>: <span class="string">&#x27;运行&#x27;</span>, </span><br><span class="line">    <span class="string">&#x27;HappenTime&#x27;</span>: datetime.datetime(<span class="number">2020</span>, <span class="number">3</span>, <span class="number">18</span>, <span class="number">7</span>, <span class="number">55</span>, <span class="number">3</span>, <span class="number">605000</span>), </span><br><span class="line">    <span class="string">&#x27;AppName&#x27;</span>: <span class="string">&#x27;vipservermailG1&#x27;</span>, </span><br><span class="line">    <span class="string">&#x27;AppFriendlyName&#x27;</span>: <span class="string">&#x27;邮件服务&#x27;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3 id="3-运行容器"><a href="#3-运行容器" class="headerlink" title="3.运行容器"></a>3.运行容器</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ docker run -d --name=influxdb --network grafana -p 8086:8086 -v   <span class="variable">$&#123;PWD&#125;</span>/influxdb/:/var/liv/influxdb/ influxdb:1.7.10</span><br></pre></td></tr></table></figure>
+<p>我发现同一条数据，在两个不同的数据库连接工具中日期”HappenTime”居然不一样，这个ISODate是什么鬼？查阅一番资料后才搞明白，原来mongo中的date类型以UTC（Coordinated Universal Time）存储，即格林尼治标准时间，而中国是在东八区，所以系统时间是加了时区的，即UTC+0800时间，<strong>两者正好相差8个小时</strong>。</p>
+<blockquote>
+<p>“2020-03-18T07:55:03.605Z”这种带T带Z的时间即为ISODate，它定义了互联网上日期/时间的偏移量表示。</p>
+<p>同一时刻，不同时区的表示方法：</p>
+<p>UTC时间：2020-03-18T07:55:03.605Z</p>
+<p>CST时间（即东八区北京时间）：2020-03-18T07:55:03.605+08:00</p>
+</blockquote>
+<p>在接口查询数据库时，是以系统时间去查询的，然而从上面第三组数据可以看出，在pymongo去查询数据时，会将ISODate转化为Python的datetime.datetime对象，时间仍然是UTC时间，即没有加时区。所以才会出现两边数据不一致的情况。</p>
+<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><p>在搞懂问题根本原因后，那么解决方法也就非常明确了，在查询数据库时需要加上时区，两边时间保证一致即可。</p>
+<p>pymongo也提供了非常简便地加时区的方法。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> pymongo</span><br><span class="line"><span class="keyword">import</span> pytz</span><br><span class="line"></span><br><span class="line">tzinfo = pytz.timezone(<span class="string">&#x27;Asia/Shanghai&#x27;</span>) <span class="comment"># 时区</span></span><br><span class="line">client = pymongo.MongoClient(</span><br><span class="line">    host=<span class="string">&#x27;1.1.1.1&#x27;</span>, </span><br><span class="line">    port=<span class="number">10</span>, </span><br><span class="line">    username=<span class="string">&#x27;admin&#x27;</span>, </span><br><span class="line">    password=<span class="string">&#x27;123&#x27;</span>,</span><br><span class="line">    tz_aware=<span class="literal">True</span>, <span class="comment"># 设置为True</span></span><br><span class="line">    tzinfo=tzinfo  <span class="comment"># 传入时区信息</span></span><br><span class="line">)</span><br><span class="line">db = client[<span class="string">&#x27;log&#x27;</span>]</span><br><span class="line">collection = db[<span class="string">&#x27;systemruning&#x27;</span>]</span><br><span class="line">data = collection.find(&#123;<span class="string">&#x27;AppName&#x27;</span>:<span class="string">&#x27;vipservermailG1&#x27;</span>&#125;)</span><br></pre></td></tr></table></figure>
 
-<p><code>$&#123;PWD&#125;/influxdb/:/var/liv/influxdb/</code>将容器里/var/liv/influxdb/目录下挂载到宿主机的${PWD}/influxdb/的目录下</p>
-<h3 id="4-进入influxdb容器内，创建一个数据库"><a href="#4-进入influxdb容器内，创建一个数据库" class="headerlink" title="4.进入influxdb容器内，创建一个数据库"></a>4.进入influxdb容器内，创建一个数据库</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker <span class="built_in">exec</span> -it influxdb influx</span><br><span class="line"><span class="comment"># 进入容器后，创建一个名为jmeter的数据库</span></span><br><span class="line">create database jmeter;</span><br></pre></td></tr></table></figure>
+<p>再次查询时，时间已变为东八区时间。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="string">&#x27;_id&#x27;</span>: ObjectId(<span class="string">&#x27;5f646902ee75270c044f15d2&#x27;</span>),</span><br><span class="line">    <span class="string">&#x27;Version&#x27;</span>: <span class="string">&#x27;1.0&#x27;</span>,  </span><br><span class="line">    <span class="string">&#x27;TypeName&#x27;</span>: <span class="string">&#x27;运行&#x27;</span>, </span><br><span class="line">    <span class="string">&#x27;HappenTime&#x27;</span>: datetime.datetime(<span class="number">2020</span>, <span class="number">3</span>, <span class="number">18</span>, <span class="number">15</span>, <span class="number">55</span>, <span class="number">3</span>, <span class="number">605000</span>),  <span class="comment"># 加了8小时</span></span><br><span class="line">    <span class="string">&#x27;AppName&#x27;</span>: <span class="string">&#x27;vipservermailG1&#x27;</span>, </span><br><span class="line">    <span class="string">&#x27;AppFriendlyName&#x27;</span>: <span class="string">&#x27;邮件服务&#x27;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3 id="5-查看两个容器已经启动"><a href="#5-查看两个容器已经启动" class="headerlink" title="5.查看两个容器已经启动"></a>5.查看两个容器已经启动</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
-<h3 id="6-登录grafana网站进行配置-默认账号密码为admin-admin"><a href="#6-登录grafana网站进行配置-默认账号密码为admin-admin" class="headerlink" title="6.登录grafana网站进行配置(默认账号密码为admin,admin)"></a>6.登录grafana网站进行配置(默认账号密码为admin,admin)</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104727119.png" alt="image-20200825104727119"></p>
-<h3 id="7-数据源配置"><a href="#7-数据源配置" class="headerlink" title="7.数据源配置"></a>7.数据源配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104813179.png" alt="image-20200825104813179"></p>
-<p><strong><em>jmeter支持两种:graphite和influxdb</em></strong></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825104934731.png" alt="image-20200825104934731"></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105006045.png" alt="image-20200825105006045"></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105025396.png" alt="image-20200825105025396"></p>
-<p><strong><em>数据同步时间5秒，jmeter隔5秒写入数据到db中，这里设置grafana间隔5秒读取db中的数据。</em></strong></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105038733.png" alt="image-20200825105038733"></p>
-<h3 id="8-面板配置"><a href="#8-面板配置" class="headerlink" title="8.面板配置"></a>8.面板配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Local\Temp\Image.png" alt="Image"></p>
-<p><strong><em>导入jmeter的面板地址： <a href="https://grafana.com/grafana/dashboards/5496">https://grafana.com/grafana/dashboards/5496</a></em></strong></p>
-<p><strong><em>也可以下载后导入json文件。</em></strong></p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105457833.png" alt="image-20200825105457833"></p>
-<h3 id="9-jmeter配置"><a href="#9-jmeter配置" class="headerlink" title="9.jmeter配置"></a>9.jmeter配置</h3><p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105610185.png" alt="image-20200825105610185"></p>
-<h3 id="10-配置完成，发起接口请求即可在grafana实时显示接口相关图表"><a href="#10-配置完成，发起接口请求即可在grafana实时显示接口相关图表" class="headerlink" title="10.配置完成，发起接口请求即可在grafana实时显示接口相关图表"></a>10.配置完成，发起接口请求即可在grafana实时显示接口相关图表</h3><h2 id="四、数据流转"><a href="#四、数据流转" class="headerlink" title="四、数据流转"></a>四、数据流转</h2><p>最后，我们来捋一捋，从jmeter开始发起请求到最后在grafana上的数据展示，响应数据是如何进行流转的。</p>
-<h3 id="1-jmeter"><a href="#1-jmeter" class="headerlink" title="1.jmeter"></a>1.jmeter</h3><p>jmeter使用命令行发起接口请求后，会产生一个**.jtl**的文件，里面记录着每个请求的一些线程数、响应码、响应时间等信息。</p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825112742837.png" alt="image-20200825112742837"></p>
-<h3 id="2-influxdb"><a href="#2-influxdb" class="headerlink" title="2.influxdb"></a>2.influxdb</h3><p>在jmeter中添加了后端监听器，并选择了通过inlufxdb实现后端监听，因此，步骤1中的响应数据，会写入到influxdb的数据库中。</p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113234453.png" alt="image-20200825113234453"></p>
-<p>进入influxdb容器内，查看数据</p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113841230.png" alt="image-20200825113841230"></p>
-<p>使用<code>select * from jmeter</code>查看数据</p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825113901681.png" alt="image-20200825113901681"></p>
-<p>记录了每个请求的详细响应信息。</p>
-<h3 id="3-grafana"><a href="#3-grafana" class="headerlink" title="3.grafana"></a>3.grafana</h3><p>由于我们配置的数据源是influxdb，因此面板展示的所有数据其实都是从influxdb的<strong>jmeter</strong>这个数据库中拿的。</p>
-<p><img src= "/img/loading.gif" data-lazy-src="/2020/07/04/%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E6%90%AD%E5%BB%BAdocker+grafana+influxdb/Users\ASUS\AppData\Roaming\Typora\typora-user-images\image-20200825105006045.png" alt="image-20200825105006045"></p>
-<p><strong>so，整个数据流转，即jmeter产生jtl—&gt;存储到influxdb—&gt;grafana从influxdb拿数据。</strong></p>
+<p>ok，问题完美解决，不过既然涉及到了时区相关的问题，就顺便补一下这方面的知识，从源头上彻底了解一下时间的相关概念，以后再遇到类似的问题会游刃有余。</p>
+<h3 id="GMT"><a href="#GMT" class="headerlink" title="GMT"></a>GMT</h3><p>GMT（Greenwich Mean Time）， 格林威治平时（也称格林威治时间）。</p>
+<p>它规定太阳每天经过位于英国伦敦郊区的皇家格林威治天文台的时间为中午12点。</p>
+<h3 id="UTC"><a href="#UTC" class="headerlink" title="UTC"></a>UTC</h3><p>UTC（Coodinated Universal Time），协调世界时，又称世界统一时间、世界标准时间、国际协调时间。由于英文（CUT）和法文（TUC）的缩写不同，作为妥协，简称UTC。</p>
+<p>UTC 是现在全球通用的时间标准，全球各地都同意将各自的时间进行同步协调。UTC 时间是经过平均太阳时（以格林威治时间GMT为准）、地轴运动修正后的新时标以及以秒为单位的国际原子时所综合精算而成。</p>
+<h3 id="UTC-vs-GMT"><a href="#UTC-vs-GMT" class="headerlink" title="UTC vs GMT"></a>UTC vs GMT</h3><p>GMT是前世界标准时，UTC是现世界标准时。</p>
+<p>UTC 比 GMT更精准，以原子时计时，适应现代社会的精确计时。</p>
+<p>但在不需要精确到秒的情况下，二者可以视为等同。</p>
+<p>每年格林尼治天文台会发调时信息，基于UTC。</p>
+<h3 id="时间戳"><a href="#时间戳" class="headerlink" title="时间戳"></a>时间戳</h3><p>时间戳是一个数字，定义为格林威治时间1970年01月01日00时00分00秒(北京时间1970年01月01日08时00分00秒)起至现在的总秒数。<strong>注意，同一时刻，不同时区获得的时间戳是相同的。</strong>以前很多用来记录时间的字段，在数据库中往往不会存储为Datetime类型，而是直接存储为无符号整形，存放时间戳的值。</p>
+<p>Python获取时间戳的代码为</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">import time</span><br><span class="line">int(time.time())</span><br></pre></td></tr></table></figure>
+
+<h3 id="本地时间"><a href="#本地时间" class="headerlink" title="本地时间"></a>本地时间</h3><p>当前时区的本地时间</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">import datetime</span><br><span class="line">datetime.datetime.now()</span><br></pre></td></tr></table></figure>
+
+<p>上面的输出值为</p>
+<blockquote>
+<p>2020-03-20 18:50:03.23743</p>
+</blockquote>
+<h3 id="标准时间"><a href="#标准时间" class="headerlink" title="标准时间"></a>标准时间</h3><p>本地时间只包括当前的时间，不包含任何时区信息。同一时刻，东八区的本地时间比零时区的本地时间快了8个小时。在不同时区之间交换时间数据，除了用纯数字的时间戳，还有一种更方便人类阅读的表示方式：标准时间的偏移量表示方法。</p>
+<p>RFC3339详细定义了互联网上日期/时间的偏移量表示：</p>
+<blockquote>
+<p>2020-03-20T00:00:00.00Z</p>
+</blockquote>
+<p>这个代表了UTC时间的2017年12月08日零时</p>
+<blockquote>
+<p>2020-03-20T00:08:00.00+08:00</p>
+</blockquote>
+<p>这个代表了同一时刻的，东八区北京时间（CST）表示的方法</p>
+<p>上面两个时间的时间戳是等价的。两个的区别，就是在本地时间后面增加了时区信息。Z表示零时区。+08:00表示UTC时间增加8小时。</p>
+<p>这种表示方式容易让人疑惑的点是从标准时间换算UTC时间。以CST转换UTC为例，没有看文档的情况下，根据 +08:00 的结尾，很容易根据直觉在本地时间再加上8小时。正确的计算方法是本地时间减去多增加的8小时。+08:00减去8小时才是UTC时间，-08:00加上8小时才是UTC时间。</p>
+<h3 id="参考文献："><a href="#参考文献：" class="headerlink" title="参考文献："></a>参考文献：</h3><p><strong>champyin</strong>：<a href="%5Bhttps://champyin.com/2020/04/24/%E5%BD%BB%E5%BA%95%E5%BC%84%E6%87%82GMT%E3%80%81UTC%E3%80%81%E6%97%B6%E5%8C%BA%E5%92%8C%E5%A4%8F%E4%BB%A4%E6%97%B6%5D(https://link.zhihu.com/?target=https://champyin.com/2020/04/24/%E5%BD%BB%E5%BA%95%E5%BC%84%E6%87%82GMT%E3%80%81UTC%E3%80%81%E6%97%B6%E5%8C%BA%E5%92%8C%E5%A4%8F%E4%BB%A4%E6%97%B6)">彻底弄懂GMT、UTC、时区和夏令时</a></p>
+<p><strong>柳纯</strong>：<a href="https://ldsink.com/articles/date-and-time-on-the-internet/">互联网上的日期和时间</a></p>
 ]]></content>
       <categories>
-        <category>实战</category>
+        <category>踩坑</category>
+        <category>总结</category>
       </categories>
       <tags>
-        <tag>docker</tag>
-        <tag>grafana</tag>
-        <tag>influxdb</tag>
+        <tag>mongodb</tag>
+        <tag>pymongo</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>我的第一篇博客</title>
-    <url>/2020/08/17/%E6%88%91%E7%9A%84%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/</url>
-    <content><![CDATA[<h2 id="第一章"><a href="#第一章" class="headerlink" title="第一章"></a>第一章</h2><hr>
-<h2 id="第二章"><a href="#第二章" class="headerlink" title="第二章"></a>第二章</h2><hr>
-]]></content>
   </entry>
 </search>
