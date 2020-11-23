@@ -81,6 +81,13 @@
 
   
   <url>
+    <loc>http://ancientone.cf/tags/pytest/</loc>
+    <lastmod>2020-11-23</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://ancientone.cf/tags/docker/</loc>
     <lastmod>2020-11-23</lastmod>
     <changefreq>daily</changefreq>
@@ -96,13 +103,6 @@
   
   <url>
     <loc>http://ancientone.cf/tags/influxdb/</loc>
-    <lastmod>2020-11-23</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>http://ancientone.cf/tags/pytest/</loc>
     <lastmod>2020-11-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -132,14 +132,14 @@
 
   
   <url>
-    <loc>http://ancientone.cf/categories/%E5%AE%9E%E6%88%98/</loc>
+    <loc>http://ancientone.cf/categories/%E6%80%BB%E7%BB%93/</loc>
     <lastmod>2020-11-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>http://ancientone.cf/categories/%E6%80%BB%E7%BB%93/</loc>
+    <loc>http://ancientone.cf/categories/%E5%AE%9E%E6%88%98/</loc>
     <lastmod>2020-11-23</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
