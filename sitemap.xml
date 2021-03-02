@@ -2,6 +2,48 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://ancientone.cf/posts/e4b7ce0d.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/posts/67d72d50.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/posts/82c8cab7.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/posts/5cd8a7d.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/posts/72cc1e91.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/posts/dea2bc19.html</loc>
+    
+    <lastmod>2021-03-02</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://ancientone.cf/posts/280bbbdf.html</loc>
     
     <lastmod>2021-03-02</lastmod>
@@ -116,14 +158,35 @@
   </url>
   
   <url>
-    <loc>http://ancientone.cf/tags/pytest/</loc>
+    <loc>http://ancientone.cf/tags/python/</loc>
     <lastmod>2021-03-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>http://ancientone.cf/tags/python/</loc>
+    <loc>http://ancientone.cf/tags/selenium/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/yaml/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/linux/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/pytest/</loc>
     <lastmod>2021-03-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -172,6 +235,55 @@
   </url>
   
   <url>
+    <loc>http://ancientone.cf/tags/shell/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/django/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/nginx/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/gunicorn/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/vue/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/%E5%89%8D%E7%AB%AF/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/tags/%E6%8E%A5%E5%8F%A3%E8%87%AA%E5%8A%A8%E5%8C%96/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>http://ancientone.cf/tags/%E9%AD%94%E6%9C%AF%E6%96%B9%E6%B3%95/</loc>
     <lastmod>2021-03-02</lastmod>
     <changefreq>daily</changefreq>
@@ -182,6 +294,13 @@
   
   <url>
     <loc>http://ancientone.cf/categories/%E6%80%BB%E7%BB%93/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/categories/%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/</loc>
     <lastmod>2021-03-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -203,6 +322,13 @@
   
   <url>
     <loc>http://ancientone.cf/categories/%E8%B8%A9%E5%9D%91/%E6%80%BB%E7%BB%93/</loc>
+    <lastmod>2021-03-02</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>http://ancientone.cf/categories/%E6%A1%86%E6%9E%B6%E8%AE%BE%E8%AE%A1/</loc>
     <lastmod>2021-03-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
